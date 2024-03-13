@@ -17,6 +17,8 @@ import {
 import dotenv from "dotenv";
 import axios from "axios";
 import { scratch } from "./scratch"
+import fs from "fs/promises"
+import path from "path"
 
 dotenv.config();
 
@@ -31,6 +33,8 @@ interface clouddata {
     value: string;
     timestamp: number;
 }
+
+let database = {};
 
 const getRamdomInt = (min: number, max: number) => {
     return Math.floor(Math.random() * (max - min) + min);
@@ -176,6 +180,12 @@ client.on("interactionCreate", async (i) => {
 });
 
 const s = new scratch(String(process.env.SCRATCH_USER_NAME), String(process.env.SCRATCH_USER_PASSWORD));
-s.on("login", () => {
-    client.login(process.env.TOKEN);
+s.on("login", async () => {
+    try {
+        if ((await fs.stat(path.join(__dirname,"../data/"))).isDirectory()){
+            
+        }
+    }catch(e){
+    }
+        client.login(process.env.TOKEN);
 })
