@@ -14,6 +14,7 @@ interface Events {
 interface CloudVar {
     [key: string]: string;
 }
+
 export class scratch {
     cookie: Cookie;
     events: Events;
@@ -41,7 +42,6 @@ export class scratch {
                 },
             },
             (response) => {
-                console.log(response);
                 if (response.statusCode !== 200) {
                     throw new Error("パスワードまたはユーザー名が違います");
                 }
