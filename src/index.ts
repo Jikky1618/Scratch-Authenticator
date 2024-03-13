@@ -12,9 +12,11 @@ import {
     TextInputBuilder,
     GuildMemberRoleManager,
     TextChannel,
+    ChannelType,
 } from "discord.js";
 import dotenv from "dotenv";
 import axios from "axios";
+import { scratch } from "./scratch"
 
 dotenv.config();
 
@@ -75,15 +77,26 @@ client.on("interactionCreate", async (i) => {
                 .setLabel("認証")
                 .setStyle(ButtonStyle.Success);
             const row = new ActionRowBuilder<ButtonBuilder>().addComponents(button);
-            i.reply({ embeds: [embed], components: [row] });
+            const selectchannel = i.options.getChannel("channel");
+            const channel = selectchannel ? selectchannel : i.channel;
+            if (channel?.type === ChannelType.GuildText) {
+                (channel as TextChannel).send({ embeds: [embed], components: [row] });
+                i.reply({
+                    content: `<#${channel?.id}>に認証埋め込みを生成しました。`,
+                    ephemeral: true
+                });
+            } else {
+                i.reply({
+                    content: "このコマンドはテキストチャンネルでのみ使用できます。",
+                    ephemeral: true
+                });
+            }
         }
     }
     if (i.isButton()) {
         if (i.customId.startsWith("auth_")) {
             let uuid = i.customId.slice(5, 15), scratchId = i.customId.slice(16);
-            await i.deferReply({
-                ephemeral: true,
-            });
+            await i.deferReply({ ephemeral: true });
             const { data } = await axios({
                 url: `https://clouddata.scratch.mit.edu/logs?projectid=${process.env.PROJECT_ID}&limit=40&offset=0`,
                 responseType: "json",
@@ -94,6 +107,7 @@ client.on("interactionCreate", async (i) => {
                 elem.user === scratchId
             )) {
                 i.followUp("認証が完了しました。");
+                s.curator("31009600", scratchId);
                 if (i.channel?.isTextBased()) {
                     (i.member?.roles as GuildMemberRoleManager).add(process.env.ROLE_ID as string);
                     const embed = new EmbedBuilder()
@@ -102,12 +116,12 @@ client.on("interactionCreate", async (i) => {
                         .addFields(
                             { name: "scratchユーザ名", value: `[${scratchId}](https://scratch.mit.edu/users/${scratchId})` },
                             { name: "Discordユーザ名", value: `${i.user?.tag}(<@!${i.user?.id}>)` },
-                            { name: "DiscordユーザID", value: i.user?.id},
+                            { name: "DiscordユーザID", value: i.user?.id },
                             { name: "検証用ID", value: uuid },
                             { name: "認証日時", value: new Date().toLocaleString() },
                         )
                     const channel = i.guild?.channels.cache.get(process.env.LOG_CHANNEL_ID as string) as TextChannel;
-                    if(channel && channel.isTextBased()) {
+                    if (channel && channel.isTextBased()) {
                         channel.send({ embeds: [embed] });
                     }
                 }
@@ -125,74 +139,6 @@ client.on("interactionCreate", async (i) => {
             const username_row = new ActionRowBuilder<TextInputBuilder>().addComponents(username_input);
             modal.addComponents(username_row);
             await i.showModal(modal);
-            // await i.deferReply({ ephemeral: true });
-            // i.user?.send("あなたのScratchアカウントを入力してください。")
-            //     .then(async (dm) => {
-            //         await i.followUp("DMを送信しました。");
-            //         const collector = dm.channel?.createMessageCollector({
-            //             filter: (m) => m.author.id === i.user?.id,
-            //             time: 60000, // 60s
-            //         });
-            //         let scratchId: string = "", uuid: string = "";
-            //         collector?.on("collect", async (m) => {
-            //             console.log(`content: ${m.content}`);
-            //             const res = await m.channel.send("確認中です...");
-            //             axios({
-            //                 url: `https://api.scratch.mit.edu/users/${encodeURIComponent(m.cleanContent)}`,
-            //                 responseType: "json",
-            //                 method: "get",
-            //             }).then(() => {
-            //                 scratchId = m.cleanContent, uuid = `${getRamdomInt(1e9, 1e10 - 1).toString()}`;
-            //                 console.log(scratchId);
-            //                 const embed = new EmbedBuilder()
-            //                     .setTitle("認証コード")
-            //                     .setDescription(`\`\`\`\n${uuid}\n\`\`\``)
-            //                     .setColor("Green");
-            //                 const auth = new ButtonBuilder()
-            //                     .setCustomId("auth")
-            //                     .setLabel("プロジェクトに入力しました")
-            //                     .setStyle(ButtonStyle.Success);
-            //                 const row = new ActionRowBuilder<ButtonBuilder>().addComponents(auth);
-            //                 res.edit({
-            //                     content: `ユーザー名の確認ができました。\n次に、下のコード(\`XXXXXXXXX\`形式)を、 https://scratch.mit.edu/projects/${process.env.PROJECT_ID}/fullscreen/ に入力してください。`,
-            //                     embeds: [embed],
-            //                     components: [row],
-            //                 });
-            //                 collector?.stop();
-            //                 return handleButton(res);
-            //             }).catch((e) => {
-            //                 console.log(e);
-            //             });
-            //         });
-            //         collector?.on("end", (collected) => {
-            //             i.user?.send("終了しました。");
-            //         });
-            //         const handleButton = async (message: Message) => {
-            //             const collector = message.createMessageComponentCollector();
-            //             collector.on("collect", async (i) => {
-            //                 await i.deferReply();
-            //                 const { data } = await axios({
-            //                     url: `https://clouddata.scratch.mit.edu/logs?projectid=${process.env.PROJECT_ID}&limit=40&offset=0`,
-            //                     responseType: "json",
-            //                     method: "get",
-            //                 });
-            //                 console.log(data);
-            //                 if (data.find((elem: clouddata) =>
-            //                     elem.value === uuid &&
-            //                     elem.user === scratchId
-            //                 )) {
-            //                     i.followUp("認証が完了しました。");
-            //                     // i.user?.roles.add(process.env.ROLE_ID);
-            //                     console.log(i.member?.roles);
-            //                 } else {
-            //                     i.followUp("認証に失敗しました。");
-            //                 }
-            //             });
-            //         };
-            //     }).catch((e) => {
-            //         if (e.toString().includes("Cannot send messages to this user"))
-            //             return i.followUp("DMの送信ができません。DM設定を変更してください。");
-            //     });
         }
     }
     if (i.isModalSubmit()) {
@@ -229,5 +175,7 @@ client.on("interactionCreate", async (i) => {
     }
 });
 
-
-client.login(process.env.TOKEN);
+const s = new scratch(String(process.env.SCRATCH_USER_NAME), String(process.env.SCRATCH_USER_PASSWORD));
+s.on("login", () => {
+    client.login(process.env.TOKEN);
+})
